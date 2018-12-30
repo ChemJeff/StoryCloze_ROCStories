@@ -15,12 +15,6 @@ from model.model import *
 from utils.utils import *
 import utils.dataLoader as dataLoader
 
-try:
-    import tensorflow as tf
-except ImportError:
-    print("Tensorflow not installed; No tensorboard logging.")
-    tf = None
-
 class BiLSTM_MLP(nn.Module):
     '''
     将模块拼接起来
@@ -75,7 +69,7 @@ if __name__ == "__main__":
 
     ckpt_path = "./base_ckpt/"
     data_path = "./data/"
-    log_dir = "./log/"
+    log_dir = "./log/test/"
 
     if not os.path.exists(ckpt_path):
         os.makedirs(ckpt_path)
@@ -90,7 +84,6 @@ if __name__ == "__main__":
 
     stime = time.time()
     sys.stdout = Logger(log_dir + "log")
-    tf_summary_writer = tf and tf.summary.FileWriter(log_dir + "tflog")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("\nDevice: %s\n" % (device))
@@ -100,7 +93,7 @@ if __name__ == "__main__":
     opt.BOS = '<p>'
     opt.EOS = '</p>'
     opt.UNK = '<unk>'
-    opt.corpus = data_path + 'val.pkl'
+    opt.corpus = data_path + 'train.pkl'
     opt.vocab = data_path + 'vocab.pkl'
     opt.word_embedding = data_path + './vocab_embed.pkl' 
     opt.word_embedding_fixed = True
@@ -112,16 +105,14 @@ if __name__ == "__main__":
     opt.num_classes = 2
     opt.lr = 1e-2
     opt.weight_decay = 1e-4
-    opt.iter_cnt = 0       # if non-zero, load checkpoint at iter (#iter_cnt)
+    opt.iter_cnt = 65000       # if non-zero, load checkpoint at iter (#iter_cnt)
     opt.train_epoch = 100
-    opt.save_every = 10000
+    opt.save_every = 1000
+    opt.sample = 100    # 输出多少个故事的测试样本
+    opt.answer = True   # 是否有正确的标签可以计算准确率
 
     with open(opt.vocab, 'rb') as f:
         word_to_ix, ix_to_word = pickle.load(f)
-
-    dataset = dataLoader.DataSet(opt)
-    dataloader = torch.utils.data.DataLoader(
-        dataset, collate_fn=dataLoader.testcollate, shuffle=True)
 
     testdataset = dataLoader.DataSet(opt)
     testdataloader = torch.utils.data.DataLoader(
@@ -129,6 +120,7 @@ if __name__ == "__main__":
 
     print("All necessites prepared, time used: %f s\n" % (time.time() - stime))
     model = BiLSTM_MLP(opt).to(device)
+    assert opt.iter_cnt > 0
 
     from_ckpt = False
     if opt.iter_cnt > 0:
@@ -142,52 +134,30 @@ if __name__ == "__main__":
             print("Failed, check the path and permission of the checkpoint")
             exit(0)
 
-    optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=opt.lr, weight_decay=opt.weight_decay)
-
-    # Check predictions before training
+    # Test prediction from model in the checkpoint
     with torch.no_grad():
-        for sent_ids, label in testdataloader:
-            label_pred = model(sent_ids)
-            visualize(sent_ids, label_pred, ix_to_word, label)
-            break
-
-    iter_cnt = opt.iter_cnt if from_ckpt is True else 0
-    for epoch in range(opt.train_epoch):
-        stime = time.time()
-        loss_add = 0.0
-        for sent_ids, label in dataloader:
-            model.zero_grad()
-
-            loss = model.nll_loss(sent_ids, label)
-            loss_add += loss.item()
-
-            loss.backward()
-            optimizer.step()
-            iter_cnt += 1
-            if iter_cnt % 100 == 0 :
-                print("%s  last 100 iters: %d s, iter = %d, average loss = %f" %(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S, %Z'), time.time() - stime, iter_cnt, loss_add/100))
-                loss_add = 0.0
-                sys.stdout.flush()
-                add_summary_value(tf_summary_writer, "train_loss", loss.item(), iter_cnt)
-                add_summary_value(tf_summary_writer, 'learning_rate', get_lr(optimizer), iter_cnt)
-                tf_summary_writer.flush()
-                stime = time.time()
-            if iter_cnt % opt.save_every == 0 :
-                try:
-                    torch.save(model.state_dict(), ckpt_path + "bilstm-mlp_300w_256s_1024d_iter%d.cpkt" % (iter_cnt))
-                    print("checkpoint saved at \'%s\'" % (ckpt_path + "bilstm-mlp_300w_256s_1024d_iter%d.cpkt" % (iter_cnt)))
-                except Exception as e:
-                    print(e)
-                with torch.no_grad():
-                    for sent_ids, label in testdataloader:
-                        label_pred = model(sent_ids)
-                        visualize(sent_ids, label_pred, ix_to_word, label)
-                        break
-
-        print("%s  last %d iters: %d s, average loss = %f" % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S, %Z'), iter_cnt % 100, time.time() - stime, loss_add/(iter_cnt % 100)))
-        loss_add = 0.0
-        with torch.no_grad():
+        right_cnt = 0       # 预测正确的样本数
+        total_cnt = 0       # 所有的样本数量
+        sample_cnt = opt.sample
+        if opt.answer:
             for sent_ids, label in testdataloader:
                 label_pred = model(sent_ids)
-                visualize(sent_ids, label_pred, ix_to_word, label)
-                break
+                judge = (label_pred[0]*label[0] + label_pred[1]*label[1] > 0.5)
+                total_cnt += 1
+                if judge is True:
+                    right_cnt += 1
+                if sample_cnt > 0 :
+                    visualize(sent_ids, label_pred, ix_to_word, label)
+                    sample_cnt -= 1
+            print("\n***************Summary*****************")
+            print("Precision: %f (%d/%d)" % (right_cnt/total_cnt, right_cnt, total_cnt))
+        else:
+            # 同时将预测结果保存至文件
+            pred_out = open(log_dir + "prediction.txt", 'w', encoding='utf-8')
+            for sent_ids in testdataloader:
+                label_pred = model(sent_ids)
+                pred_out("1\n" if label_pred[0]> label_pred[1] else "2\n")
+                if sample_cnt > 0 :
+                    visualize(sent_ids, label_pred, ix_to_word)
+                    sample_cnt -= 1
+                

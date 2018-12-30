@@ -78,6 +78,12 @@ if __name__ == "__main__":
     data_path = "./data/"
     log_dir = "./log/"
 
+    if not os.path.exists(ckpt_path):
+        os.makedirs(ckpt_path)
+
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
     time_suffix = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
     log_dir = log_dir + "run_%s/" % (time_suffix)
     if not os.path.exists(log_dir):
@@ -100,7 +106,7 @@ if __name__ == "__main__":
     opt.UNK = '<unk>'
     opt.corpus = data_path + 'val.pkl'
     opt.vocab = data_path + 'vocab.pkl'
-    opt.word_embedding = './vocab_embed.pkl' 
+    opt.word_embedding = data_path + './vocab_embed.pkl' 
     opt.word_embedding_fixed = True
     opt.encoding = 'utf-8'
     opt.word_embed_dim = 300
@@ -111,6 +117,7 @@ if __name__ == "__main__":
     opt.lr = 1e-2
     opt.weight_decay = 1e-4
     opt.iter_cnt = 0       # if non-zero, load checkpoint at iter (#iter_cnt)
+    opt.save_every = 1000
 
     dataset = dataLoader.DataSet(opt)
     dataloader = torch.utils.data.DataLoader(
@@ -147,24 +154,25 @@ if __name__ == "__main__":
     iter_cnt = opt.iter_cnt if from_ckpt is True else 0
     for epoch in range(40):
         stime = time.time()
-        lastloss = 0.0
+        loss_add = 0.0
         for sent_ids, label in dataloader:
             model.zero_grad()
 
             loss = model.nll_loss(sent_ids, label)
-            lastloss = loss.item()
+            loss_add += loss.item()
 
             loss.backward()
             optimizer.step()
             iter_cnt += 1
             if iter_cnt % 100 == 0 :
-                print("%s  last 100 iters: %d s, iter = %d, loss = %f" %(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S, %Z'), time.time() - stime, iter_cnt, loss.item()))
+                print("%s  last 100 iters: %d s, iter = %d, average loss = %f" %(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S, %Z'), time.time() - stime, iter_cnt, loss_add/100))
+                loss_add = 0.0
                 sys.stdout.flush()
                 add_summary_value(tf_summary_writer, "train_loss", loss.item(), iter_cnt)
                 add_summary_value(tf_summary_writer, 'learning_rate', get_lr(optimizer), iter_cnt)
                 tf_summary_writer.flush()
                 stime = time.time()
-            if iter_cnt % 1000 == 0 :
+            if iter_cnt % opt.save_every == 0 :
                 try:
                     torch.save(model.state_dict(), ckpt_path + "bilstm-mlp_300w_256s_1024d_iter%d.cpkt" % (iter_cnt))
                     print("checkpoint saved at \'%s\'" % (ckpt_path + "bilstm-mlp_300w_256s_1024d_iter%d.cpkt" % (iter_cnt)))
@@ -176,7 +184,8 @@ if __name__ == "__main__":
                         visualize(sent_ids, label_pred, ix_to_word, label)
                         break
 
-        print("%s  last %d iters: %d s, loss = %f" % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S, %Z'), iter_cnt % 100, time.time() - stime, lastloss))
+        print("%s  last %d iters: %d s, average loss = %f" % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S, %Z'), iter_cnt % 100, time.time() - stime, loss_add/(iter_cnt % 100)))
+        loss_add = 0.0
         with torch.no_grad():
             for sent_ids, label in testdataloader:
                 label_pred = model(sent_ids)

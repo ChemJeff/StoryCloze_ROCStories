@@ -9,7 +9,6 @@ code for python 3.x and pyTorch == 0.4
 import os
 import argparse
 import csv
-import nltk
 import numpy as np
 import random
 import torch

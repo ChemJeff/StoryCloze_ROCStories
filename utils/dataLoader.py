@@ -35,7 +35,8 @@ class DataSet(data.Dataset) :
         self.dataset = self.corpus_covert(self.opt.corpus)
         self.datalen = len(self.dataset)
         print("Dataset from \'%s\' loaded" % (self.opt.corpus))
-        print("Dataset split: %s\n" %(self.split))
+        print("Dataset split: %s" %(self.split))
+        print("Dataset size: %s\n" %(self.datalen))
 
 
     def corpus_covert(self, corpus_path):
@@ -133,7 +134,7 @@ def collate(batch_in_list) :
     return packed, idx_unsort, words
 
 def testcollate(data_in):
-    return data_in
+    return data_in[0]
 
 if __name__ == "__main__" :
     opt = argparse.Namespace()
@@ -142,7 +143,7 @@ if __name__ == "__main__" :
     opt.UNK = '<unk>'
     opt.corpus = './train.pkl'
     opt.vocab = './vocab.pkl'
-    opt.embedding = './vocab_embed.pkl' 
+    opt.word_embedding = './vocab_embed.pkl' 
     opt.encoding = 'utf-8'
     dataset = DataSet(opt)
     dataloader = data.DataLoader(dataset, batch_size=1, collate_fn=testcollate)

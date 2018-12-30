@@ -186,7 +186,7 @@ if __name__ == "__main__":
 
         if (iter_cnt % 100 > 0):    # divide-by-zero bug fixed
             print("%s  last %d iters: %d s, average loss = %f" % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S, %Z'), iter_cnt % 100, time.time() - stime, loss_add/(iter_cnt % 100)))
-            loss_add = 0.0
+            # loss_add = 0.0  fix bug when compute average loss
             with torch.no_grad():
                 for sent_ids, label in testdataloader:
                     label_pred = model(sent_ids)

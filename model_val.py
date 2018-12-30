@@ -184,10 +184,11 @@ if __name__ == "__main__":
                         visualize(sent_ids, label_pred, ix_to_word, label)
                         break
 
-        print("%s  last %d iters: %d s, average loss = %f" % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S, %Z'), iter_cnt % 100, time.time() - stime, loss_add/(iter_cnt % 100)))
-        loss_add = 0.0
-        with torch.no_grad():
-            for sent_ids, label in testdataloader:
-                label_pred = model(sent_ids)
-                visualize(sent_ids, label_pred, ix_to_word, label)
-                break
+        if (iter_cnt % 100 > 0):    # divide-by-zero bug fixed
+            print("%s  last %d iters: %d s, average loss = %f" % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S, %Z'), iter_cnt % 100, time.time() - stime, loss_add/(iter_cnt % 100)))
+            loss_add = 0.0
+            with torch.no_grad():
+                for sent_ids, label in testdataloader:
+                    label_pred = model(sent_ids)
+                    visualize(sent_ids, label_pred, ix_to_word, label)
+                    break

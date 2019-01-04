@@ -153,9 +153,9 @@ if __name__ == "__main__":
         else:
             # 同时将预测结果保存至文件
             pred_out = open(log_dir + "prediction.txt", 'w', encoding='utf-8')
-            for sent_ids in testdataloader:
+            for (sent_ids, ) in testdataloader:
                 label_pred = model(sent_ids)
-                pred_out("1\n" if label_pred[0]> label_pred[1] else "2\n")
+                pred_out.write("1\n" if label_pred[0]> label_pred[1] else "2\n")
                 if sample_cnt > 0 :
                     visualize(sent_ids, label_pred, ix_to_word)
                     sample_cnt -= 1

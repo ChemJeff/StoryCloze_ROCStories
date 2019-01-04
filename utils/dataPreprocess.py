@@ -32,9 +32,6 @@ def build_vocab_list(file_path_list=['train.csv', 'val.csv', 'test.csv'], encodi
             csvreader = csv.reader(f)
             next(csvreader)     # 跳过csv文件的标题行
             for entry in csvreader:
-                if first_line:
-                    first_line = False
-                    continue
                 entry = entry[:-1] if file_path == 'val.csv' else entry
                 for sent in entry:
                     words = nltk.tokenize.word_tokenize(sent)
@@ -45,7 +42,7 @@ def build_vocab_list(file_path_list=['train.csv', 'val.csv', 'test.csv'], encodi
 
     return vocab_freq
 
-def build_word_vec(vocab_freq, w2v_path='./embedding/crawl-300d-2M.vec'):
+def build_word_vec(vocab_freq, w2v_path='../embedding/InferSent/dataset/fastText/crawl-300d-2M.vec'):
     word_vec = dict()
     w2i = dict()
     i2w = dict()

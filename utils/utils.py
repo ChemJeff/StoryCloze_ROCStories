@@ -45,19 +45,28 @@ class Logger(object):
         self.terminal.flush()
         self.log.flush()
 
-def visualize(sent_ids, label_pred, idx2word, label=None):
+def visualize(sent_ids, label_pred, idx2word, label=None, rawdata=False):
     '''
     打印原始的故事文本(部分不在vocab的词会被替换为<unk>)
     以及候选句子和对应的预测概率、正确答案(如果有)
     '''
     print("Story:\n    ", end="")
     for sent in sent_ids[:4]:
-        sent = sent[1:-1]   # 去掉<p></p>标记
-        print(" ".join([idx2word[idx] for idx in sent]), end=" ")
+        if not rawdata:
+            sent = sent[1:-1]   # 去掉<p></p>标记
+            print(" ".join([idx2word[idx] for idx in sent]), end=" ")
+        else:
+            print(" ".join(sent), end=" ")
     print("\nCandidate 1:\n    ",end="")
-    print(" ".join([idx2word[idx] for idx in sent_ids[4][1:-1]]))
+    if not rawdata:
+        print(" ".join([idx2word[idx] for idx in sent_ids[4][1:-1]]))
+    else:
+        print(" ".join(sent_ids[4]))
     print("\nCandidate 2:\n    ",end="")
-    print(" ".join([idx2word[idx] for idx in sent_ids[5][1:-1]]))
+    if not rawdata:
+        print(" ".join([idx2word[idx] for idx in sent_ids[5][1:-1]]))
+    else:
+        print(" ".join(sent_ids[5]))
     print("\nPrediction: ", end="")
     print(list(label_pred))
     if label is not None:

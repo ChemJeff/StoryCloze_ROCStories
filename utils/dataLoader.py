@@ -30,7 +30,8 @@ class DataSet(data.Dataset) :
         print("Vocab from \'%s\' loaded" % (self.opt.vocab))
         self.vocab = self.word2id.keys()
         self.vocab_size = len(self.vocab)
-        print("Vocab size: %d\n" % (self.vocab_size))       
+        print("Vocab size: %d\n" % (self.vocab_size))
+        self.rawdata = self.opt.rawdata       
         self.dataset = self.corpus_covert(self.opt.corpus)
         self.datalen = len(self.dataset)
         print("Dataset from \'%s\' loaded" % (self.opt.corpus))
@@ -46,12 +47,15 @@ class DataSet(data.Dataset) :
             for idx, sents in enumerate(corpus_raw['data']):
                 sent_ids = []
                 for sent in sents:
-                    ids = [self.word2id[self.opt.BOS]] + \
-                        [self.word2id[word] \
-                        if word in self.vocab \
-                        else self.word2id[self.opt.UNK]
-                        for word in sent] \
-                        + [self.word2id[self.opt.EOS]]
+                    if not self.rawdata:
+                        ids = [self.word2id[self.opt.BOS]] + \
+                            [self.word2id[word] \
+                            if word in self.vocab \
+                            else self.word2id[self.opt.UNK]
+                            for word in sent] \
+                            + [self.word2id[self.opt.EOS]]
+                    else:
+                        ids = sent
                     sent_ids.append(ids)
                 if self.split == 'val':     #这个数据集包含label的信息
                     label = corpus_raw['label'][idx]

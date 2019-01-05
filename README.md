@@ -40,3 +40,9 @@ curl -Lo embedding/InferSent/encoder/infersent2.pkl https://s3.amazonaws.com/sen
 然后就可以直接执行train.py进行模型的训练
 
 或者使用test.py加载预训练的模型进行故事结尾的预测
+
+### 预训练模型
+
+4500000次iteration的一个模型可以从```https://pan.baidu.com/s/1o8XfXX9HGHnt88G81aTiyw```下载
+
+放入./checkpoint目录下即可
